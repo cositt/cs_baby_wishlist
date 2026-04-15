@@ -1,0 +1,459 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <template id="portal_my_home_baby_wishlist" inherit_id="portal.portal_my_home" name="Portal Baby Wishlist Entry">
+        <xpath expr="//div[@id='portal_common_category']" position="inside">
+            <style>
+                .o_portal_icon img[src="/cs_baby_wishlist/static/listas.png"],
+                .o_portal_icon img[src="/cs_baby_wishlist/static/crear_lista.png"] {
+                    width: 64px;
+                    height: 64px;
+                    object-fit: contain;
+                    display: block;
+                }
+            </style>
+            <t t-call="portal.portal_docs_entry">
+                <t t-set="icon" t-value="'/cs_baby_wishlist/static/listas.png'"/>
+                <t t-set="title">Mis listas de bebe</t>
+                <t t-set="text">Ver, editar y compartir tus listas.</t>
+                <t t-set="url" t-value="'/my/baby-wishlist'"/>
+                <t t-set="config_card" t-value="True"/>
+            </t>
+            <t t-call="portal.portal_docs_entry">
+                <t t-set="icon" t-value="'/cs_baby_wishlist/static/crear_lista.png'"/>
+                <t t-set="title">Crear nueva lista</t>
+                <t t-set="text">Crear una nueva wishlist desde la web.</t>
+                <t t-set="url" t-value="'/my/baby-wishlist/new'"/>
+                <t t-set="config_card" t-value="True"/>
+            </t>
+        </xpath>
+    </template>
+
+    <template id="wishlist_builder_page" name="Baby Wishlist Builder">
+        <t t-call="website.layout">
+            <div class="container py-4">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h1 class="h3 m-0">Crea tu lista de nacimiento</h1>
+                    <a class="btn btn-outline-secondary" href="/baby-wishlist/my">Mis listas</a>
+                </div>
+
+                <div t-if="error" class="alert alert-danger" role="alert">
+                    <t t-esc="error"/>
+                </div>
+                <div t-if="success" class="alert alert-success" role="alert">
+                    Lista creada correctamente.
+                </div>
+
+                <div class="row g-4">
+                    <div class="col-12 col-lg-8">
+                        <div class="card shadow-sm">
+                            <div class="card-header">
+                                <strong>Productos</strong>
+                            </div>
+                            <div class="card-body">
+                                <div class="row g-3">
+                                    <div class="col-12 col-md-6" t-foreach="products" t-as="product">
+                                        <div class="border rounded p-3 h-100 d-flex flex-column">
+                                            <div class="d-flex align-items-center gap-2 mb-2">
+                                                <img t-att-src="'/web/image/product.product/%s/image_128' % product.id"
+                                                     style="width:48px;height:48px;object-fit:cover;"
+                                                     class="rounded" alt="Product"/>
+                                                <div>
+                                                    <div class="fw-semibold"><t t-esc="product.display_name"/></div>
+                                                    <small><t t-esc="product.list_price"/></small>
+                                                </div>
+                                            </div>
+                                            <form action="/baby-wishlist/cart/add" method="post" class="mt-auto d-flex gap-2">
+                                                <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+                                                <input type="hidden" name="product_id" t-att-value="product.id"/>
+                                                <input type="number" step="1" min="1" value="1" name="qty" class="form-control form-control-sm"/>
+                                                <button type="submit" class="btn btn-primary btn-sm">Agregar</button>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-12 col-lg-4">
+                        <div class="card shadow-sm mb-3">
+                            <div class="card-header"><strong>Tu cesta de deseos</strong></div>
+                            <div class="card-body">
+                                <div t-if="not cart_lines" class="text-muted">No hay productos todavía.</div>
+                                <div t-foreach="cart_lines" t-as="line" class="d-flex justify-content-between align-items-center border-bottom py-2">
+                                    <div>
+                                        <div class="fw-semibold"><t t-esc="line['product'].display_name"/></div>
+                                        <small>Cantidad: <t t-esc="line['qty']"/></small>
+                                    </div>
+                                    <form action="/baby-wishlist/cart/remove" method="post">
+                                        <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+                                        <input type="hidden" name="product_id" t-att-value="line['product'].id"/>
+                                        <button type="submit" class="btn btn-link text-danger btn-sm p-0">Quitar</button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card shadow-sm">
+                            <div class="card-header"><strong>Guardar lista</strong></div>
+                            <div class="card-body">
+                                <form action="/baby-wishlist/create" method="post" class="d-grid gap-2">
+                                    <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+                                    <input type="text" name="name" class="form-control" placeholder="Nombre de la lista" required="required"/>
+                                    <input type="date" name="event_date" class="form-control"/>
+                                    <input type="email" name="co_parent_email" class="form-control" placeholder="Email del co-parent (opcional)"/>
+                                    <textarea name="notes" class="form-control" rows="3" placeholder="Notas opcionales"></textarea>
+                                    <button type="submit" class="btn btn-success">Crear y enviar por email</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </t>
+    </template>
+
+    <template id="wishlist_my_page" name="My Baby Wishlists">
+        <t t-call="website.layout">
+            <div class="container py-4">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h1 class="h3 m-0">Mis listas de nacimiento</h1>
+                    <a class="btn btn-primary" href="/baby-wishlist">Crear nueva lista</a>
+                </div>
+                <div t-if="success" class="alert alert-success" role="alert">
+                    Lista creada y enviada al correo.
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Nombre</th>
+                                <th>Estado</th>
+                                <th>Evento</th>
+                                <th>Enlace público</th>
+                                <th>Gestión privada</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr t-foreach="wishlists" t-as="w">
+                                <td><t t-esc="w.name"/></td>
+                                <td><t t-esc="w.state"/></td>
+                                <td><t t-esc="w.event_date or ''"/></td>
+                                <td>
+                                    <button
+                                        type="button"
+                                        class="btn btn-outline-secondary btn-sm js-copy-public-link"
+                                        t-att-data-link="w.public_url">
+                                        Copiar enlace para compartir
+                                    </button>
+                                </td>
+                                <td>
+                                    <a class="btn btn-primary btn-sm" t-att-href="w.manage_url">
+                                        Entrar
+                                    </a>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <script type="text/javascript">
+                document.addEventListener("click", function (ev) {
+                    var button = ev.target.closest(".js-copy-public-link");
+                    if (!button) {
+                        return;
+                    }
+                    var link = button.getAttribute("data-link");
+                    if (!link) {
+                        return;
+                    }
+                    navigator.clipboard.writeText(link).then(function () {
+                        var oldText = button.textContent;
+                        button.textContent = "Enlace copiado";
+                        setTimeout(function () {
+                            button.textContent = oldText;
+                        }, 1200);
+                    });
+                });
+            </script>
+        </t>
+    </template>
+
+    <template id="wishlist_manage_page" name="Wishlist Manage Page">
+        <t t-call="website.layout">
+            <div class="container py-4">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h1 class="h3 m-0">Gestionar: <t t-esc="wishlist.name"/></h1>
+                    <a class="btn btn-outline-secondary" t-att-href="wishlist.public_url">Ver pública</a>
+                </div>
+                <div class="alert alert-danger" t-if="error"><t t-esc="error"/></div>
+                <div class="alert alert-success" t-if="success">Lista actualizada correctamente.</div>
+
+                <div class="row g-4">
+                    <div class="col-12 col-lg-6">
+                        <div class="card shadow-sm">
+                            <div class="card-header"><strong>Productos en tu lista</strong></div>
+                            <div class="card-body">
+                                <div t-if="not wishlist.line_ids" class="text-muted">No hay productos todavía.</div>
+                                <div t-foreach="wishlist.line_ids" t-as="line" class="d-flex justify-content-between align-items-center border-bottom py-2">
+                                    <div>
+                                        <div class="fw-semibold"><t t-esc="line.product_id.display_name"/></div>
+                                        <small>Deseado: <t t-esc="line.quantity_desired"/> | Comprado: <t t-esc="line.quantity_purchased"/></small>
+                                    </div>
+                                    <form t-att-action="'/wishlist/manage/%s/remove/%s' % (wishlist.manage_token, line.id)" method="post">
+                                        <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+                                        <button class="btn btn-link text-danger btn-sm p-0" type="submit">Eliminar</button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-12 col-lg-6">
+                        <div class="card shadow-sm">
+                            <div class="card-header"><strong>Enlaces de la lista</strong></div>
+                            <div class="card-body">
+                                <div class="d-grid gap-3">
+                                    <div>
+                                        <p class="mb-2"><strong>Copiar enlace para compartir</strong></p>
+                                        <button
+                                            type="button"
+                                            class="btn btn-outline-secondary btn-sm js-copy-public-link"
+                                            t-att-data-link="wishlist.public_url">
+                                            Copiar enlace público
+                                        </button>
+                                    </div>
+                                    <div>
+                                        <p class="mb-2"><strong>Copiar enlace privado de gestión</strong></p>
+                                        <button
+                                            type="button"
+                                            class="btn btn-outline-primary btn-sm js-copy-manage-link"
+                                            t-att-data-link="wishlist.manage_url">
+                                            Copiar enlace de gestión
+                                        </button>
+                                    </div>
+                                    <div>
+                                        <p class="mb-2"><strong>Añadir productos</strong></p>
+                                        <a
+                                            class="btn btn-outline-primary btn-sm"
+                                            t-att-href="'/wishlist/manage/%s/catalog' % wishlist.manage_token">
+                                            Añadir productos desde el catálogo
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <script type="text/javascript">
+                document.addEventListener("click", function (ev) {
+                    var publicButton = ev.target.closest(".js-copy-public-link");
+                    var manageButton = ev.target.closest(".js-copy-manage-link");
+                    var button = publicButton || manageButton;
+                    if (!button) {
+                        return;
+                    }
+                    var link = button.getAttribute("data-link");
+                    if (!link) {
+                        return;
+                    }
+                    navigator.clipboard.writeText(link).then(function () {
+                        var oldText = button.textContent;
+                        button.textContent = "Enlace copiado";
+                        setTimeout(function () {
+                            button.textContent = oldText;
+                        }, 1200);
+                    });
+                });
+            </script>
+        </t>
+    </template>
+
+    <template id="product_detail_wishlist_button" inherit_id="website_sale.cta_wrapper" name="Product Detail Wishlist Button">
+        <xpath expr="//div[@id='product_option_block']" position="inside">
+            <t t-if="request.env.user and not request.env.user._is_public()">
+                <t t-set="detail_user_wishlists" t-value="request.env['wishlist.list'].sudo().search(['|', ('customer_id', '=', request.env.user.partner_id.id), ('co_parent_id', '=', request.env.user.partner_id.id), ('state', '!=', 'closed')], order='id desc', limit=20)"/>
+                <button
+                    t-if="detail_user_wishlists"
+                    type="button"
+                    class="btn btn-outline-secondary w-100 mt-2"
+                    data-bs-toggle="modal"
+                    data-bs-target="#wishlistModalDetail">
+                    + lista deseo
+                </button>
+                <a
+                    t-if="not detail_user_wishlists"
+                    class="btn btn-outline-secondary w-100 mt-2"
+                    href="/baby-wishlist">
+                    Crear wishlist
+                </a>
+            </t>
+        </xpath>
+    </template>
+
+    <template id="product_detail_wishlist_modal" inherit_id="website_sale.product" name="Product Detail Wishlist Modal Overlay">
+        <xpath expr="//div[@id='wrap']" position="inside">
+            <style>
+                .cs-wishlist-modal {
+                    z-index: 2000 !important;
+                }
+                .modal-backdrop.show {
+                    z-index: 1990 !important;
+                }
+            </style>
+            <t t-if="request.env.user and not request.env.user._is_public()">
+                <t t-set="detail_user_wishlists" t-value="request.env['wishlist.list'].sudo().search(['|', ('customer_id', '=', request.env.user.partner_id.id), ('co_parent_id', '=', request.env.user.partner_id.id), ('state', '!=', 'closed')], order='id desc', limit=20)"/>
+                <t t-if="detail_user_wishlists">
+                    <div class="modal fade cs-wishlist-modal" id="wishlistModalDetail" tabindex="-1" aria-hidden="true">
+                        <div class="modal-dialog modal-dialog-centered">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title">Añadir a lista de deseos</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"/>
+                                </div>
+                                <div class="modal-body">
+                                    <form action="/wishlist/catalog/add" method="post" class="d-grid gap-2">
+                                        <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+                                        <input type="hidden" name="product_id" t-att-value="product_variant.id if product_variant else product.product_variant_id.id"/>
+                                        <label class="form-label mb-0">Lista de deseos</label>
+                                        <select name="wishlist_id" class="form-select" required="required">
+                                            <option t-foreach="detail_user_wishlists" t-as="wl" t-att-value="wl.id">
+                                                <t t-esc="wl.name"/>
+                                            </option>
+                                        </select>
+                                        <label class="form-label mb-0">Cantidad</label>
+                                        <input name="qty" class="form-control" type="number" min="1" step="1" value="1" required="required"/>
+                                        <button type="submit" class="btn btn-primary">Añadir</button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </t>
+            </t>
+        </xpath>
+    </template>
+
+    <template id="wishlist_public_page" name="Baby Wishlist Public Page">
+        <t t-call="website.layout">
+            <div class="container py-4">
+                <div class="row justify-content-center">
+                    <div class="col-12 col-lg-10">
+                        <div class="card shadow-sm mb-4">
+                            <div class="card-body">
+                                <h1 class="h3 mb-2">
+                                    <t t-esc="wishlist.name"/>
+                                </h1>
+                                <p class="mb-1">
+                                    <strong>Padres:</strong>
+                                    <t t-esc="wishlist.customer_id.display_name"/>
+                                    <t t-if="wishlist.co_parent_id">
+                                        &amp; <t t-esc="wishlist.co_parent_id.display_name"/>
+                                    </t>
+                                </p>
+                                <p class="mb-1" t-if="wishlist.event_date">
+                                    <strong>Fecha del evento:</strong> <t t-esc="wishlist.event_date"/>
+                                </p>
+                                <p class="mb-0" t-if="wishlist.notes">
+                                    <t t-esc="wishlist.notes"/>
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="table-responsive">
+                            <table class="table table-striped align-middle">
+                                <thead>
+                                    <tr>
+                                        <th>Producto</th>
+                                        <th class="text-end">Precio</th>
+                                        <th class="text-end">Deseados</th>
+                                        <th class="text-end">Comprados</th>
+                                        <th class="text-end">Faltantes</th>
+                                        <th class="text-end">Acción</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr t-foreach="lines" t-as="line">
+                                        <td>
+                                            <div class="d-flex align-items-center gap-2">
+                                                <img
+                                                    t-att-src="'/web/image/product.product/%s/image_128' % line.product_id.id"
+                                                    class="rounded"
+                                                    style="width:48px;height:48px;object-fit:cover;"
+                                                    alt="Imagen de producto"/>
+                                                <span t-esc="line.product_id.display_name"/>
+                                            </div>
+                                        </td>
+                                        <td class="text-end"><t t-esc="line.product_price"/></td>
+                                        <td class="text-end"><t t-esc="int(line.quantity_desired or 0)"/></td>
+                                        <td class="text-end"><t t-esc="int(line.quantity_purchased or 0)"/></td>
+                                        <td class="text-end"><t t-esc="int(line.remaining_qty or 0)"/></td>
+                                        <td class="text-end">
+                                            <button
+                                                t-if="not line.is_fulfilled and wishlist.state == 'active'"
+                                                type="button"
+                                                class="btn btn-primary btn-sm"
+                                                data-bs-toggle="modal"
+                                                t-att-data-bs-target="'#wishlistBuyModal_%s' % line.id">
+                                                Comprar
+                                            </button>
+                                            <button
+                                                t-else=""
+                                                class="btn btn-secondary btn-sm"
+                                                disabled="disabled">
+                                                Completado
+                                            </button>
+
+                                            <div
+                                                t-if="not line.is_fulfilled and wishlist.state == 'active'"
+                                                class="modal fade"
+                                                t-att-id="'wishlistBuyModal_%s' % line.id"
+                                                tabindex="-1"
+                                                aria-hidden="true">
+                                                <div class="modal-dialog modal-dialog-centered">
+                                                    <div class="modal-content">
+                                                        <div class="modal-header">
+                                                            <h5 class="modal-title">Comprar producto de la lista</h5>
+                                                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"/>
+                                                        </div>
+                                                        <div class="modal-body">
+                                                            <p class="mb-2">
+                                                                <strong><t t-esc="line.product_id.display_name"/></strong>
+                                                            </p>
+                                                            <p class="text-muted mb-3">
+                                                                Disponible para comprar: <strong><t t-esc="int(line.remaining_qty or 0)"/></strong>
+                                                            </p>
+                                                            <form t-att-action="'/wishlist/%s/buy/%s' % (wishlist.token, line.id)" method="post" class="d-grid gap-2">
+                                                                <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+                                                                <label class="form-label mb-0">Cantidad a comprar</label>
+                                                                <input
+                                                                    name="qty"
+                                                                    class="form-control"
+                                                                    type="number"
+                                                                    min="1"
+                                                                    step="1"
+                                                                    t-att-max="int(line.remaining_qty or 1)"
+                                                                    value="1"
+                                                                    required="required"/>
+                                                                <label class="form-label mb-0">¿Deseas añadir más productos?</label>
+                                                                <select name="continue_shopping" class="form-select" required="required">
+                                                                    <option value="1" selected="selected">Si, seguir en la lista</option>
+                                                                    <option value="0">No, ir al carrito</option>
+                                                                </select>
+                                                                <button type="submit" class="btn btn-primary">Agregar al carrito</button>
+                                                            </form>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </t>
+    </template>
+</odoo>

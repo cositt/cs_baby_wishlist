@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_partner_form_cs_baby_wishlist" model="ir.ui.view">
+        <field name="name">res.partner.form.baby.wishlist</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="base.view_partner_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//div[hasclass('oe_button_box')]" position="inside">
+                <button
+                    type="object"
+                    name="action_view_wishlists"
+                    class="oe_stat_button"
+                    icon="fa-gift"
+                    invisible="is_company == True and parent_id != False">
+                    <field name="wishlist_count" widget="statinfo" string="Wishlists"/>
+                </button>
+            </xpath>
+        </field>
+    </record>
+</odoo>

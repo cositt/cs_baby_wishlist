@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Disable native eCommerce wishlist to avoid UX confusion with cs_baby_wishlist -->
+    <record id="website_sale_wishlist.add_to_wishlist" model="ir.ui.view">
+        <field name="active">False</field>
+    </record>
+    <record id="website_sale_wishlist.product_add_to_wishlist" model="ir.ui.view">
+        <field name="active">False</field>
+    </record>
+    <record id="website_sale_wishlist.header_wishlist_link" model="ir.ui.view">
+        <field name="active">False</field>
+    </record>
+    <record id="website_sale_wishlist.header_hide_empty_wishlist_link" model="ir.ui.view">
+        <field name="active">False</field>
+    </record>
+    <record id="website_sale_wishlist.template_header_mobile" model="ir.ui.view">
+        <field name="active">False</field>
+    </record>
+    <record id="website_sale_wishlist.template_header_default" model="ir.ui.view">
+        <field name="active">False</field>
+    </record>
+    <record id="website_sale_wishlist.template_header_hamburger" model="ir.ui.view">
+        <field name="active">False</field>
+    </record>
+    <record id="website_sale_wishlist.template_header_stretch" model="ir.ui.view">
+        <field name="active">False</field>
+    </record>
+    <record id="website_sale_wishlist.template_header_vertical" model="ir.ui.view">
+        <field name="active">False</field>
+    </record>
+    <record id="website_sale_wishlist.template_header_sales_one" model="ir.ui.view">
+        <field name="active">False</field>
+    </record>
+    <record id="website_sale_wishlist.template_header_sales_two" model="ir.ui.view">
+        <field name="active">False</field>
+    </record>
+    <record id="website_sale_wishlist.template_header_sales_three" model="ir.ui.view">
+        <field name="active">False</field>
+    </record>
+    <record id="website_sale_wishlist.template_header_sales_four" model="ir.ui.view">
+        <field name="active">False</field>
+    </record>
+    <record id="website_sale_wishlist.template_header_sidebar" model="ir.ui.view">
+        <field name="active">False</field>
+    </record>
+    <record id="website_sale_wishlist.template_header_search" model="ir.ui.view">
+        <field name="active">False</field>
+    </record>
+</odoo>
