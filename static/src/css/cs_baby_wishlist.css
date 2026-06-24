@@ -1,0 +1,15 @@
+.o_portal_icon img[src*="cs_baby_wishlist/static/listas.png"],
+.o_portal_icon img[src*="cs_baby_wishlist/static/crear_lista.png"] {
+    width: 64px;
+    height: 64px;
+    object-fit: contain;
+    display: block;
+}
+
+.cs-wishlist-modal {
+    z-index: 2000 !important;
+}
+
+.modal-backdrop.show {
+    z-index: 1990 !important;
+}

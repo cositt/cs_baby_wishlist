@@ -21,9 +21,9 @@
         <field name="arch" type="xml">
             <form>
                 <header>
-                    <button name="action_set_active" type="object" string="Activate" class="btn-primary" invisible="state != 'draft'"/>
-                    <button name="action_set_closed" type="object" string="Close" class="btn-secondary" invisible="state != 'active'"/>
-                    <button name="action_set_draft" type="object" string="Set Draft" invisible="state == 'draft'"/>
+                    <button name="action_set_active" type="object" string="Activar" class="btn-primary" invisible="state != 'draft'"/>
+                    <button name="action_set_closed" type="object" string="Cerrar" class="btn-secondary" invisible="state != 'active'"/>
+                    <button name="action_set_draft" type="object" string="Borrador" invisible="state == 'draft'"/>
                     <field name="state" widget="statusbar" statusbar_visible="draft,active,closed"/>
                 </header>
                 <sheet>
@@ -37,6 +37,8 @@
                         <group>
                             <field name="public_url" readonly="1"/>
                             <field name="token" readonly="1"/>
+                            <field name="manage_url" readonly="1"/>
+                            <field name="manage_token" readonly="1"/>
                         </group>
                     </group>
                     <group>

@@ -1,3 +1,5 @@
+from markupsafe import Markup, escape
+
 from odoo import _, api, fields, models
 
 
@@ -30,27 +32,27 @@ class SaleOrder(models.Model):
 
         line_rows = []
         for line in updated_lines:
-            line_rows.append(
-                "<li><strong>{name}</strong>: comprado {purchased}/{desired} (restante: {remaining})</li>".format(
-                    name=line.product_id.display_name,
-                    purchased=int(line.quantity_purchased),
-                    desired=int(line.quantity_desired),
-                    remaining=max(int(line.quantity_desired - line.quantity_purchased), 0),
-                )
-            )
+            line_rows.append(Markup(
+                "<li><strong>{name}</strong>: comprado {purchased}/{desired} (restante: {remaining})</li>"
+            ).format(
+                name=escape(line.product_id.display_name),
+                purchased=int(line.quantity_purchased),
+                desired=int(line.quantity_desired),
+                remaining=max(int(line.quantity_desired - line.quantity_purchased), 0),
+            ))
 
-        body = _(
+        body = Markup(
             "<p>Tu lista de deseos se ha actualizado por una nueva compra.</p>"
-            "<p><strong>Lista:</strong> %(list_name)s</p>"
-            "<ul>%(lines)s</ul>"
-            "<p><strong>Enlace de gestion:</strong> <a href=\"%(manage_url)s\">%(manage_url)s</a></p>"
-            "<p><strong>Enlace publico:</strong> <a href=\"%(public_url)s\">%(public_url)s</a></p>"
-        ) % {
-            "list_name": wishlist.name,
-            "lines": "".join(line_rows),
-            "manage_url": wishlist.manage_url or "",
-            "public_url": wishlist.public_url or "",
-        }
+            "<p><strong>Lista:</strong> {list_name}</p>"
+            "<ul>{lines}</ul>"
+            "<p><strong>Enlace de gestion:</strong> <a href=\"{manage_url}\">{manage_url}</a></p>"
+            "<p><strong>Enlace publico:</strong> <a href=\"{public_url}\">{public_url}</a></p>"
+        ).format(
+            list_name=escape(wishlist.name),
+            lines=Markup("".join(str(r) for r in line_rows)),
+            manage_url=escape(wishlist.manage_url or ""),
+            public_url=escape(wishlist.public_url or ""),
+        )
 
         mail = self.env["mail.mail"].sudo().create(
             {

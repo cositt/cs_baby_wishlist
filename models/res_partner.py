@@ -8,12 +8,12 @@ class ResPartner(models.Model):
     wishlist_count = fields.Integer(compute="_compute_wishlist_count")
 
     def _compute_wishlist_count(self):
-        grouped = self.env["wishlist.list"].read_group(
+        grouped = self.env["wishlist.list"]._read_group(
             [("customer_id", "in", self.ids)],
             ["customer_id"],
-            ["customer_id"],
+            ["__count"],
         )
-        counts = {item["customer_id"][0]: item["customer_id_count"] for item in grouped}
+        counts = {customer.id: count for customer, count in grouped}
         for partner in self:
             partner.wishlist_count = counts.get(partner.id, 0)
 

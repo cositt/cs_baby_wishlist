@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Regular users can only write/unlink their own wishlists (backend only; sudo() in controllers bypasses this) -->
+    <record id="rule_wishlist_list_own_write" model="ir.rule">
+        <field name="name">Wishlist: Own records write/unlink</field>
+        <field name="model_id" ref="model_wishlist_list"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="perm_read">0</field>
+        <field name="perm_write">1</field>
+        <field name="perm_create">0</field>
+        <field name="perm_unlink">1</field>
+        <field name="domain_force">['|', ('customer_id.user_ids', 'in', [user.id]), ('co_parent_id.user_ids', 'in', [user.id])]</field>
+    </record>
+
+    <!-- Managers bypass the domain restriction above -->
+    <record id="rule_wishlist_list_manager" model="ir.rule">
+        <field name="name">Wishlist: Manager full access</field>
+        <field name="model_id" ref="model_wishlist_list"/>
+        <field name="groups" eval="[(4, ref('cs_baby_wishlist.group_manager'))]"/>
+        <field name="perm_read">1</field>
+        <field name="perm_write">1</field>
+        <field name="perm_create">1</field>
+        <field name="perm_unlink">1</field>
+        <field name="domain_force">[(1, '=', 1)]</field>
+    </record>
+</odoo>

@@ -9,6 +9,7 @@ class WishlistList(models.Model):
     _description = "Baby Wishlist"
     _order = "id desc"
 
+    active = fields.Boolean(default=True)
     name = fields.Char(required=True)
     customer_id = fields.Many2one("res.partner", required=True)
     co_parent_id = fields.Many2one("res.partner")
@@ -48,23 +49,27 @@ class WishlistList(models.Model):
 
     @api.model
     def _generate_token(self):
-        token = uuid.uuid4().hex
-        while self.search_count([("token", "=", token)]):
-            token = uuid.uuid4().hex
-        return token
+        return uuid.uuid4().hex
 
     @api.model_create_multi
     def create(self, vals_list):
         for vals in vals_list:
             if not vals.get("token"):
-                vals["token"] = self._generate_token()
+                vals["token"] = uuid.uuid4().hex
             if not vals.get("manage_token"):
-                vals["manage_token"] = self._generate_token()
-        return super().create(vals_list)
+                vals["manage_token"] = uuid.uuid4().hex
+        try:
+            return super().create(vals_list)
+        except Exception:
+            # UUID4 collision is astronomically rare — retry once with fresh tokens
+            for vals in vals_list:
+                vals["token"] = uuid.uuid4().hex
+                vals["manage_token"] = uuid.uuid4().hex
+            return super().create(vals_list)
 
     def write(self, vals):
         if any(rec.state == "closed" for rec in self):
-            allowed = {"state"}
+            allowed = {"state", "active"}
             if not set(vals).issubset(allowed):
                 raise UserError(_("Closed wishlists cannot be edited."))
         return super().write(vals)

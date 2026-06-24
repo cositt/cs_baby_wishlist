@@ -6,14 +6,21 @@
     "author": "Custom",
     "license": "LGPL-3",
     "images": ["static/description/icon.png"],
-    "depends": ["base", "product", "sale", "website", "website_sale"],
+    "depends": ["base", "product", "sale", "website", "website_sale", "website_sale_wishlist"],
     "data": [
+        "security/groups.xml",
         "security/ir.model.access.csv",
+        "security/ir_rule.xml",
         "views/wishlist_views.xml",
         "views/partner_views.xml",
         "views/disable_native_wishlist_views.xml",
         "views/templates.xml",
     ],
+    "assets": {
+        "web.assets_frontend": [
+            "cs_baby_wishlist/static/src/css/cs_baby_wishlist.css",
+        ],
+    },
     "application": True,
     "installable": True,
 }

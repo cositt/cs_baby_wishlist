@@ -2,15 +2,6 @@
 <odoo>
     <template id="portal_my_home_baby_wishlist" inherit_id="portal.portal_my_home" name="Portal Baby Wishlist Entry">
         <xpath expr="//div[@id='portal_common_category']" position="inside">
-            <style>
-                .o_portal_icon img[src="/cs_baby_wishlist/static/listas.png"],
-                .o_portal_icon img[src="/cs_baby_wishlist/static/crear_lista.png"] {
-                    width: 64px;
-                    height: 64px;
-                    object-fit: contain;
-                    display: block;
-                }
-            </style>
             <t t-call="portal.portal_docs_entry">
                 <t t-set="icon" t-value="'/cs_baby_wishlist/static/listas.png'"/>
                 <t t-set="title">Mis listas de bebe</t>
@@ -50,6 +41,12 @@
                                 <strong>Productos</strong>
                             </div>
                             <div class="card-body">
+                                <form action="/baby-wishlist" method="get" class="mb-3">
+                                    <div class="input-group">
+                                        <input type="text" name="search" class="form-control" placeholder="Buscar producto..." t-att-value="search or ''"/>
+                                        <button type="submit" class="btn btn-outline-secondary">Buscar</button>
+                                    </div>
+                                </form>
                                 <div class="row g-3">
                                     <div class="col-12 col-md-6" t-foreach="products" t-as="product">
                                         <div class="border rounded p-3 h-100 d-flex flex-column">
@@ -59,7 +56,7 @@
                                                      class="rounded" alt="Product"/>
                                                 <div>
                                                     <div class="fw-semibold"><t t-esc="product.display_name"/></div>
-                                                    <small><t t-esc="product.list_price"/></small>
+                                                    <small><t t-esc="product.currency_id.symbol or '$'"/>&#160;<t t-esc="'%.2f' % product.list_price"/></small>
                                                 </div>
                                             </div>
                                             <form action="/baby-wishlist/cart/add" method="post" class="mt-auto d-flex gap-2">
@@ -197,7 +194,7 @@
                                 <div t-if="not wishlist.line_ids" class="text-muted">No hay productos todavía.</div>
                                 <div t-foreach="wishlist.line_ids" t-as="line" class="d-flex justify-content-between align-items-center border-bottom py-2">
                                     <div>
-                                        <div class="fw-semibold"><t t-esc="line.product_id.display_name"/></div>
+                                        <div class="fw-semibold"><t t-esc="line.product_id.name"/></div>
                                         <small>Deseado: <t t-esc="line.quantity_desired"/> | Comprado: <t t-esc="line.quantity_purchased"/></small>
                                     </div>
                                     <form t-att-action="'/wishlist/manage/%s/remove/%s' % (wishlist.manage_token, line.id)" method="post">
@@ -209,6 +206,29 @@
                         </div>
                     </div>
                     <div class="col-12 col-lg-6">
+                        <div class="card shadow-sm mb-3">
+                            <div class="card-header"><strong>Añadir productos</strong></div>
+                            <div class="card-body">
+                                <form t-att-action="'/wishlist/manage/%s' % wishlist.manage_token" method="get" class="mb-3">
+                                    <div class="input-group">
+                                        <input type="text" name="search" class="form-control" placeholder="Buscar producto..." t-att-value="search or ''"/>
+                                        <button type="submit" class="btn btn-outline-secondary">Buscar</button>
+                                    </div>
+                                </form>
+                                <div t-if="products" class="row g-2">
+                                    <div class="col-12" t-foreach="products" t-as="product">
+                                        <form t-att-action="'/wishlist/manage/%s/add' % wishlist.manage_token" method="post" class="d-flex align-items-center gap-2">
+                                            <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+                                            <input type="hidden" name="product_id" t-att-value="product.id"/>
+                                            <span class="flex-grow-1 small"><t t-esc="product.display_name"/></span>
+                                            <input type="number" name="qty" value="1" min="1" class="form-control form-control-sm" style="width:70px;"/>
+                                            <button type="submit" class="btn btn-outline-primary btn-sm">+</button>
+                                        </form>
+                                    </div>
+                                </div>
+                                <div t-else="" class="text-muted small">Busca un producto para añadirlo.</div>
+                            </div>
+                        </div>
                         <div class="card shadow-sm">
                             <div class="card-header"><strong>Enlaces de la lista</strong></div>
                             <div class="card-body">
@@ -230,14 +250,6 @@
                                             t-att-data-link="wishlist.manage_url">
                                             Copiar enlace de gestión
                                         </button>
-                                    </div>
-                                    <div>
-                                        <p class="mb-2"><strong>Añadir productos</strong></p>
-                                        <a
-                                            class="btn btn-outline-primary btn-sm"
-                                            t-att-href="'/wishlist/manage/%s/catalog' % wishlist.manage_token">
-                                            Añadir productos desde el catálogo
-                                        </a>
                                     </div>
                                 </div>
                             </div>
@@ -269,7 +281,8 @@
         </t>
     </template>
 
-    <template id="product_detail_wishlist_button" inherit_id="website_sale.cta_wrapper" name="Product Detail Wishlist Button">
+    <!-- Single template for both the button and modal to avoid duplicate DB query -->
+    <template id="product_detail_wishlist" inherit_id="website_sale.cta_wrapper" name="Product Detail Wishlist">
         <xpath expr="//div[@id='product_option_block']" position="inside">
             <t t-if="request.env.user and not request.env.user._is_public()">
                 <t t-set="detail_user_wishlists" t-value="request.env['wishlist.list'].sudo().search(['|', ('customer_id', '=', request.env.user.partner_id.id), ('co_parent_id', '=', request.env.user.partner_id.id), ('state', '!=', 'closed')], order='id desc', limit=20)"/>
@@ -287,49 +300,31 @@
                     href="/baby-wishlist">
                     Crear wishlist
                 </a>
-            </t>
-        </xpath>
-    </template>
-
-    <template id="product_detail_wishlist_modal" inherit_id="website_sale.product" name="Product Detail Wishlist Modal Overlay">
-        <xpath expr="//div[@id='wrap']" position="inside">
-            <style>
-                .cs-wishlist-modal {
-                    z-index: 2000 !important;
-                }
-                .modal-backdrop.show {
-                    z-index: 1990 !important;
-                }
-            </style>
-            <t t-if="request.env.user and not request.env.user._is_public()">
-                <t t-set="detail_user_wishlists" t-value="request.env['wishlist.list'].sudo().search(['|', ('customer_id', '=', request.env.user.partner_id.id), ('co_parent_id', '=', request.env.user.partner_id.id), ('state', '!=', 'closed')], order='id desc', limit=20)"/>
-                <t t-if="detail_user_wishlists">
-                    <div class="modal fade cs-wishlist-modal" id="wishlistModalDetail" tabindex="-1" aria-hidden="true">
-                        <div class="modal-dialog modal-dialog-centered">
-                            <div class="modal-content">
-                                <div class="modal-header">
-                                    <h5 class="modal-title">Añadir a lista de deseos</h5>
-                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"/>
-                                </div>
-                                <div class="modal-body">
-                                    <form action="/wishlist/catalog/add" method="post" class="d-grid gap-2">
-                                        <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
-                                        <input type="hidden" name="product_id" t-att-value="product_variant.id if product_variant else product.product_variant_id.id"/>
-                                        <label class="form-label mb-0">Lista de deseos</label>
-                                        <select name="wishlist_id" class="form-select" required="required">
-                                            <option t-foreach="detail_user_wishlists" t-as="wl" t-att-value="wl.id">
-                                                <t t-esc="wl.name"/>
-                                            </option>
-                                        </select>
-                                        <label class="form-label mb-0">Cantidad</label>
-                                        <input name="qty" class="form-control" type="number" min="1" step="1" value="1" required="required"/>
-                                        <button type="submit" class="btn btn-primary">Añadir</button>
-                                    </form>
-                                </div>
+                <div t-if="detail_user_wishlists" class="modal fade cs-wishlist-modal" id="wishlistModalDetail" tabindex="-1" aria-hidden="true">
+                    <div class="modal-dialog modal-dialog-centered">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">Añadir a lista de deseos</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"/>
+                            </div>
+                            <div class="modal-body">
+                                <form action="/wishlist/catalog/add" method="post" class="d-grid gap-2">
+                                    <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+                                    <input type="hidden" name="product_id" t-att-value="product_variant.id if product_variant else product.product_variant_id.id"/>
+                                    <label class="form-label mb-0">Lista de deseos</label>
+                                    <select name="wishlist_id" class="form-select" required="required">
+                                        <option t-foreach="detail_user_wishlists" t-as="wl" t-att-value="wl.id">
+                                            <t t-esc="wl.name"/>
+                                        </option>
+                                    </select>
+                                    <label class="form-label mb-0">Cantidad</label>
+                                    <input name="qty" class="form-control" type="number" min="1" step="1" value="1" required="required"/>
+                                    <button type="submit" class="btn btn-primary">Añadir</button>
+                                </form>
                             </div>
                         </div>
                     </div>
-                </t>
+                </div>
             </t>
         </xpath>
     </template>

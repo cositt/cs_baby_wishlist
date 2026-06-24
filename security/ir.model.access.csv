@@ -1,3 +1,5 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
 access_wishlist_list_user,wishlist.list user,model_wishlist_list,base.group_user,1,1,1,1
 access_wishlist_line_user,wishlist.line user,model_wishlist_line,base.group_user,1,1,1,1
+access_wishlist_list_manager,wishlist.list manager,model_wishlist_list,cs_baby_wishlist.group_manager,1,1,1,1
+access_wishlist_line_manager,wishlist.line manager,model_wishlist_line,cs_baby_wishlist.group_manager,1,1,1,1

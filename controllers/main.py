@@ -44,12 +44,11 @@ class WishlistController(http.Controller):
         return request.env["wishlist.list"].sudo().search([("manage_token", "=", manage_token)], limit=1)
 
     @http.route("/baby-wishlist", type="http", auth="user", website=True, sitemap=False)
-    def wishlist_builder(self, **kwargs):
-        products = (
-            request.env["product.product"]
-            .sudo()
-            .search([("sale_ok", "=", True), ("active", "=", True)], limit=120)
-        )
+    def wishlist_builder(self, search=None, **kwargs):
+        domain = [("sale_ok", "=", True), ("active", "=", True), ("product_tmpl_id.is_published", "=", True)]
+        if search:
+            domain.append(("name", "ilike", search))
+        products = request.env["product.product"].sudo().search(domain, limit=120)
         cart = self._session_cart()
         cart_lines = []
         product_map = {str(p.id): p for p in products}
@@ -62,6 +61,7 @@ class WishlistController(http.Controller):
             {
                 "products": products,
                 "cart_lines": cart_lines,
+                "search": search or "",
                 "error": kwargs.get("error"),
                 "success": kwargs.get("success"),
             },
@@ -70,7 +70,7 @@ class WishlistController(http.Controller):
     @http.route("/baby-wishlist/cart/add", type="http", auth="user", methods=["POST"], website=True, sitemap=False)
     def wishlist_cart_add(self, product_id=None, qty=1, **kwargs):
         product = request.env["product.product"].sudo().browse(int(product_id or 0))
-        if not product.exists() or not product.sale_ok:
+        if not product.exists() or not product.sale_ok or not product.product_tmpl_id.is_published:
             return request.redirect("/baby-wishlist?" + urlencode({"error": _("Producto no valido.")}))
         cart = self._session_cart()
         new_qty = cart.get(str(product.id), 0) + self._to_int_qty(qty)
@@ -155,32 +155,47 @@ class WishlistController(http.Controller):
 
         return request.redirect("/baby-wishlist/my?success=1")
 
-    @http.route("/wishlist/manage/<string:manage_token>", type="http", auth="public", website=True, sitemap=False)
-    def wishlist_manage_page(self, manage_token, **kwargs):
+    def _check_manage_access(self, wishlist):
+        partner_id = request.env.user.partner_id.id
+        return wishlist and partner_id in (wishlist.customer_id.id, wishlist.co_parent_id.id)
+
+    @http.route("/wishlist/manage/<string:manage_token>", type="http", auth="user", website=True, sitemap=False)
+    def wishlist_manage_page(self, manage_token, search=None, **kwargs):
         wishlist = request.env["wishlist.list"].sudo().search([("manage_token", "=", manage_token)], limit=1)
         if not wishlist:
             return request.not_found()
+        if not self._check_manage_access(wishlist):
+            return request.redirect("/baby-wishlist/my?" + urlencode({"error": _("No tienes acceso a esta lista.")}))
         request.session["baby_wishlist_manage_token"] = wishlist.manage_token
-        products = (
-            request.env["product.product"]
-            .sudo()
-            .search([("sale_ok", "=", True), ("active", "=", True)], limit=120)
-        )
+        products = request.env["product.product"]
+        if search:
+            products = request.env["product.product"].sudo().search(
+                [
+                    ("sale_ok", "=", True),
+                    ("active", "=", True),
+                    ("product_tmpl_id.is_published", "=", True),
+                    ("name", "ilike", search),
+                ],
+                limit=40,
+            )
         return request.render(
             "cs_baby_wishlist.wishlist_manage_page",
             {
                 "wishlist": wishlist,
                 "products": products,
+                "search": search or "",
                 "error": kwargs.get("error"),
                 "success": kwargs.get("success"),
             },
         )
 
-    @http.route("/wishlist/manage/<string:manage_token>/catalog", type="http", auth="public", website=True, sitemap=False)
+    @http.route("/wishlist/manage/<string:manage_token>/catalog", type="http", auth="user", website=True, sitemap=False)
     def wishlist_manage_catalog(self, manage_token, **kwargs):
         wishlist = request.env["wishlist.list"].sudo().search([("manage_token", "=", manage_token)], limit=1)
         if not wishlist:
             return request.not_found()
+        if not self._check_manage_access(wishlist):
+            return request.redirect("/baby-wishlist/my?" + urlencode({"error": _("No tienes acceso a esta lista.")}))
         request.session["baby_wishlist_manage_token"] = wishlist.manage_token
         return request.redirect("/shop")
 
@@ -203,7 +218,7 @@ class WishlistController(http.Controller):
         if wishlist.state == "closed":
             return request.redirect(f"/wishlist/manage/{wishlist.manage_token}?error=Lista+cerrada")
         product = request.env["product.product"].sudo().browse(int(product_id or 0))
-        if not product.exists() or not product.sale_ok:
+        if not product.exists() or not product.sale_ok or not product.product_tmpl_id.is_published:
             return request.redirect(f"/wishlist/manage/{wishlist.manage_token}?error=Producto+no+valido")
         qty = self._to_int_qty(qty)
         line = request.env["wishlist.line"].sudo().search(
@@ -218,14 +233,16 @@ class WishlistController(http.Controller):
         return request.redirect(f"/wishlist/manage/{wishlist.manage_token}?success=1")
 
     @http.route(
-        "/wishlist/manage/<string:manage_token>/add", type="http", auth="public", methods=["POST"], website=True, sitemap=False
+        "/wishlist/manage/<string:manage_token>/add", type="http", auth="user", methods=["POST"], website=True, sitemap=False
     )
     def wishlist_manage_add_product(self, manage_token, product_id=None, qty=1, **kwargs):
         wishlist = request.env["wishlist.list"].sudo().search([("manage_token", "=", manage_token)], limit=1)
+        if not self._check_manage_access(wishlist):
+            return request.redirect("/baby-wishlist/my?" + urlencode({"error": _("No tienes acceso a esta lista.")}))
         if not wishlist or wishlist.state == "closed":
             return request.redirect(f"/wishlist/manage/{manage_token}?error=Lista+cerrada")
         product = request.env["product.product"].sudo().browse(int(product_id or 0))
-        if not product.exists() or not product.sale_ok:
+        if not product.exists() or not product.sale_ok or not product.product_tmpl_id.is_published:
             return request.redirect(f"/wishlist/manage/{manage_token}?error=Producto+no+valido")
         qty = self._to_int_qty(qty)
         line = request.env["wishlist.line"].sudo().search(
@@ -242,13 +259,15 @@ class WishlistController(http.Controller):
     @http.route(
         "/wishlist/manage/<string:manage_token>/remove/<int:line_id>",
         type="http",
-        auth="public",
+        auth="user",
         methods=["POST"],
         website=True,
         sitemap=False,
     )
     def wishlist_manage_remove_line(self, manage_token, line_id, **kwargs):
         wishlist = request.env["wishlist.list"].sudo().search([("manage_token", "=", manage_token)], limit=1)
+        if not self._check_manage_access(wishlist):
+            return request.redirect("/baby-wishlist/my?" + urlencode({"error": _("No tienes acceso a esta lista.")}))
         if not wishlist or wishlist.state == "closed":
             return request.redirect(f"/wishlist/manage/{manage_token}?error=Lista+cerrada")
         line = request.env["wishlist.line"].sudo().search(
@@ -260,10 +279,11 @@ class WishlistController(http.Controller):
 
     @http.route("/baby-wishlist/my", type="http", auth="user", website=True, sitemap=False)
     def wishlist_my(self, **kwargs):
+        partner_id = request.env.user.partner_id.id
         wishlists = (
             request.env["wishlist.list"]
             .sudo()
-            .search([("customer_id", "=", request.env.user.partner_id.id)], order="id desc")
+            .search(["|", ("customer_id", "=", partner_id), ("co_parent_id", "=", partner_id)], order="id desc")
         )
         return request.render(
             "cs_baby_wishlist.wishlist_my_page",
@@ -277,7 +297,7 @@ class WishlistController(http.Controller):
             return request.not_found()
         return request.render(
             "cs_baby_wishlist.wishlist_public_page",
-            {"wishlist": wishlist, "lines": wishlist.line_ids.sorted(key=lambda l: l.id)},
+            {"wishlist": wishlist, "lines": wishlist.line_ids},
         )
 
     @http.route(
@@ -285,7 +305,7 @@ class WishlistController(http.Controller):
         type="http",
         auth="public",
         website=True,
-        methods=["GET", "POST"],
+        methods=["POST"],
         sitemap=False,
     )
     def wishlist_buy(self, token, line_id, qty=1, continue_shopping="0", **kwargs):
@@ -304,12 +324,7 @@ class WishlistController(http.Controller):
         if remaining <= 0:
             return request.redirect(f"/wishlist/{token}")
 
-        # Backward compatibility: if someone opens legacy GET buy link, keep old behavior.
-        if request.httprequest.method == "GET":
-            requested_qty = int(remaining)
-            continue_shopping = "0"
-        else:
-            requested_qty = self._to_int_qty(qty)
+        requested_qty = self._to_int_qty(qty)
 
         order = request.cart or request.website._create_cart()
         current_qty = sum(
