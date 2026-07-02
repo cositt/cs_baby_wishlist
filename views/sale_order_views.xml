@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Feature A/C: dedicatoria, firma y flag de carrito de lista, visibles en el pedido (backend) -->
+    <record id="view_order_form_wishlist_gift" model="ir.ui.view">
+        <field name="name">sale.order.form.wishlist.gift</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_order_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//notebook" position="inside">
+                <page string="Lista de nacimiento"
+                      name="wishlist_gift"
+                      invisible="not is_wishlist_cart">
+                    <group>
+                        <field name="is_wishlist_cart" readonly="1"/>
+                        <field name="wishlist_gift_signature" readonly="1"/>
+                        <field name="wishlist_gift_message" readonly="1"/>
+                    </group>
+                </page>
+            </xpath>
+        </field>
+    </record>
+</odoo>

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <!-- Toggle del carrito exclusivo de la lista de nacimiento (Feature C).
+             "1" = bloqueo activo (default), "0" = comportamiento sin bloqueo.
+             Editable en Ajustes -> Tecnico -> Parametros del sistema. -->
+        <record id="config_exclusive_cart" model="ir.config_parameter">
+            <field name="key">cs_baby_wishlist.exclusive_cart</field>
+            <field name="value">1</field>
+        </record>
+    </data>
+</odoo>

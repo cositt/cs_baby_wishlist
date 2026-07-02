@@ -329,6 +329,35 @@
         </xpath>
     </template>
 
+    <!-- Feature A: bloque de dedicatoria + firma, solo en carritos de lista de nacimiento -->
+    <template id="wishlist_cart_gift" inherit_id="website_sale.cart" name="Wishlist Gift Message">
+        <xpath expr="//t[@t-call='website_sale.cart_lines']" position="after">
+            <div t-if="website_sale_order and website_sale_order.is_wishlist_cart"
+                 class="card shadow-sm mt-3 cs-wishlist-gift">
+                <div class="card-header"><strong>Dedicatoria para los padres</strong></div>
+                <div class="card-body">
+                    <div t-if="request.params.get('gift_saved')" class="alert alert-success" role="alert">
+                        Dedicatoria guardada correctamente.
+                    </div>
+                    <p class="text-muted small">
+                        Se enviará junto con el aviso de compra a los padres. Una dedicatoria por compra.
+                    </p>
+                    <form action="/wishlist/order/gift" method="post" class="d-grid gap-2">
+                        <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+                        <label class="form-label mb-0">Mensaje para los padres</label>
+                        <textarea name="gift_message" class="form-control" rows="3"
+                                  placeholder="Escribe tu dedicatoria..."><t t-esc="website_sale_order.wishlist_gift_message or ''"/></textarea>
+                        <label class="form-label mb-0">Tu nombre (firma)</label>
+                        <input type="text" name="gift_signature" class="form-control"
+                               placeholder="Tu nombre"
+                               t-att-value="website_sale_order.wishlist_gift_signature or ''"/>
+                        <button type="submit" class="btn btn-primary">Guardar dedicatoria</button>
+                    </form>
+                </div>
+            </div>
+        </xpath>
+    </template>
+
     <template id="wishlist_public_page" name="Baby Wishlist Public Page">
         <t t-call="website.layout">
             <div class="container py-4">
