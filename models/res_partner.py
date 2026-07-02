@@ -1,4 +1,4 @@
-from odoo import fields, models
+from odoo import api, fields, models
 
 
 class ResPartner(models.Model):
@@ -7,6 +7,7 @@ class ResPartner(models.Model):
     wishlist_ids = fields.One2many("wishlist.list", "customer_id", string="Wishlists")
     wishlist_count = fields.Integer(compute="_compute_wishlist_count")
 
+    @api.depends("wishlist_ids")
     def _compute_wishlist_count(self):
         grouped = self.env["wishlist.list"]._read_group(
             [("customer_id", "in", self.ids)],

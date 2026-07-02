@@ -96,10 +96,21 @@ class SaleOrder(models.Model):
 
     def action_confirm(self):
         res = super().action_confirm()
+        wishlist_line_ids = (
+            self.order_line.filtered(lambda l: l.wishlist_line_id).mapped("wishlist_line_id").ids
+        )
+        if wishlist_line_ids:
+            # Lock rows first so concurrent confirmations on the same wishlist line
+            # serialize instead of both reading a stale quantity_purchased.
+            self.env.cr.execute(
+                "SELECT id FROM wishlist_line WHERE id = ANY(%s) FOR UPDATE",
+                (wishlist_line_ids,),
+            )
         for order in self:
             wishlist_updates = {}
             for line in order.order_line.filtered(lambda l: l.wishlist_line_id):
                 wishlist_line = line.wishlist_line_id.sudo()
+                wishlist_line.invalidate_recordset(["quantity_purchased"])
                 remaining = wishlist_line.quantity_desired - wishlist_line.quantity_purchased
                 if remaining <= 0:
                     continue

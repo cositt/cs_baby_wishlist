@@ -58,14 +58,7 @@ class WishlistList(models.Model):
                 vals["token"] = uuid.uuid4().hex
             if not vals.get("manage_token"):
                 vals["manage_token"] = uuid.uuid4().hex
-        try:
-            return super().create(vals_list)
-        except Exception:
-            # UUID4 collision is astronomically rare — retry once with fresh tokens
-            for vals in vals_list:
-                vals["token"] = uuid.uuid4().hex
-                vals["manage_token"] = uuid.uuid4().hex
-            return super().create(vals_list)
+        return super().create(vals_list)
 
     def write(self, vals):
         if any(rec.state == "closed" for rec in self):
