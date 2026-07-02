@@ -365,6 +365,8 @@ class WishlistController(http.Controller):
         requested_qty = self._to_int_qty(qty)
 
         order = request.cart or request.website._create_cart()
+        if not order.is_wishlist_cart:
+            order.sudo().is_wishlist_cart = True
         current_qty = sum(
             order.order_line.filtered(lambda l: l.wishlist_line_id.id == line.id).mapped("product_uom_qty")
         )
@@ -386,3 +388,16 @@ class WishlistController(http.Controller):
         if str(continue_shopping) == "1":
             return request.redirect(f"/wishlist/{token}")
         return request.redirect("/shop/cart")
+
+    @http.route("/wishlist/order/gift", type="http", auth="public", methods=["POST"], website=True, sitemap=False)
+    def wishlist_order_gift(self, gift_message=None, gift_signature=None, **kwargs):
+        order = request.cart
+        if not order or not order.is_wishlist_cart:
+            return request.redirect("/shop/cart")
+        order.sudo().write(
+            {
+                "wishlist_gift_message": (gift_message or "").strip() or False,
+                "wishlist_gift_signature": (gift_signature or "").strip() or False,
+            }
+        )
+        return request.redirect("/shop/cart?gift_saved=1")

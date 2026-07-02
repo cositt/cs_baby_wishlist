@@ -134,3 +134,168 @@ class TestWishlistLine(TransactionCase):
         self.wishlist.action_set_closed()
         with self.assertRaises(UserError):
             line.unlink()
+
+
+class TestWishlistExclusiveCart(TransactionCase):
+    """Feature C: el carrito de una lista solo admite items de esa lista."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.partner = cls.env["res.partner"].create({"name": "Buyer", "email": "buyer@test.com"})
+        cls.list_product = cls.env["product.product"].create(
+            {"name": "List Product", "list_price": 50.0, "sale_ok": True}
+        )
+        cls.shop_product = cls.env["product.product"].create(
+            {"name": "Shop Product", "list_price": 30.0, "sale_ok": True}
+        )
+        cls.wishlist = cls.env["wishlist.list"].create(
+            {"name": "Lista", "customer_id": cls.partner.id, "state": "active"}
+        )
+        cls.line = cls.env["wishlist.line"].create(
+            {
+                "wishlist_id": cls.wishlist.id,
+                "product_id": cls.list_product.id,
+                "quantity_desired": 3,
+                "quantity_purchased": 0,
+            }
+        )
+
+    def setUp(self):
+        super().setUp()
+        # Enforcement activo por defecto en cada test.
+        self.env["ir.config_parameter"].sudo().set_param("cs_baby_wishlist.exclusive_cart", "1")
+
+    def _order(self):
+        return self.env["sale.order"].create({"partner_id": self.partner.id})
+
+    def _empty_line(self):
+        return self.env["sale.order.line"]
+
+    def _add_normal_line(self, order, product):
+        order.write(
+            {"order_line": [(0, 0, {"product_id": product.id, "product_uom_qty": 1})]}
+        )
+        return order.order_line[-1:]
+
+    def test_wishlist_item_marks_cart(self):
+        order = self._order()
+        qty, warning = order._verify_updated_quantity(
+            self._empty_line(),
+            self.list_product.id,
+            2,
+            self.list_product.uom_id.id,
+            wishlist_line_id=self.line.id,
+        )
+        self.assertEqual(qty, 2)
+        self.assertFalse(warning)
+        self.assertTrue(order.is_wishlist_cart)
+
+    def test_normal_product_rejected_in_wishlist_cart(self):
+        order = self._order()
+        order.is_wishlist_cart = True
+        qty, warning = order._verify_updated_quantity(
+            self._empty_line(),
+            self.shop_product.id,
+            1,
+            self.shop_product.uom_id.id,
+        )
+        self.assertEqual(qty, 0)
+        self.assertTrue(warning)
+
+    def test_wishlist_item_rejected_in_normal_cart(self):
+        order = self._order()
+        self._add_normal_line(order, self.shop_product)
+        qty, warning = order._verify_updated_quantity(
+            self._empty_line(),
+            self.list_product.id,
+            1,
+            self.list_product.uom_id.id,
+            wishlist_line_id=self.line.id,
+        )
+        self.assertEqual(qty, 0)
+        self.assertTrue(warning)
+
+    def test_qty_capped_to_remaining(self):
+        order = self._order()
+        qty, _warning = order._verify_updated_quantity(
+            self._empty_line(),
+            self.list_product.id,
+            10,
+            self.list_product.uom_id.id,
+            wishlist_line_id=self.line.id,
+        )
+        self.assertEqual(qty, 3)
+
+    def test_toggle_off_allows_mixing(self):
+        self.env["ir.config_parameter"].sudo().set_param("cs_baby_wishlist.exclusive_cart", "0")
+        order = self._order()
+        order.is_wishlist_cart = True
+        qty, warning = order._verify_updated_quantity(
+            self._empty_line(),
+            self.shop_product.id,
+            1,
+            self.shop_product.uom_id.id,
+        )
+        self.assertEqual(qty, 1)
+        self.assertFalse(warning)
+
+
+class TestWishlistGift(TransactionCase):
+    """Feature A: dedicatoria + firma por compra, incluida en el email a los padres."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.partner = cls.env["res.partner"].create(
+            {"name": "Parent", "email": "gift-parent@test.com"}
+        )
+        cls.buyer = cls.env["res.partner"].create({"name": "Buyer", "email": "gift-buyer@test.com"})
+        cls.product = cls.env["product.product"].create(
+            {"name": "Gift Product", "list_price": 40.0, "sale_ok": True}
+        )
+        cls.wishlist = cls.env["wishlist.list"].create(
+            {"name": "Lista Regalo", "customer_id": cls.partner.id, "state": "active"}
+        )
+        cls.line = cls.env["wishlist.line"].create(
+            {
+                "wishlist_id": cls.wishlist.id,
+                "product_id": cls.product.id,
+                "quantity_desired": 2,
+                "quantity_purchased": 1,
+            }
+        )
+
+    def test_gift_fields_persist_on_order(self):
+        order = self.env["sale.order"].create({"partner_id": self.buyer.id})
+        order.write(
+            {
+                "is_wishlist_cart": True,
+                "wishlist_gift_message": "Con mucho cariño para el bebé",
+                "wishlist_gift_signature": "Tío Juan",
+            }
+        )
+        self.assertEqual(order.wishlist_gift_message, "Con mucho cariño para el bebé")
+        self.assertEqual(order.wishlist_gift_signature, "Tío Juan")
+
+    def test_gift_included_in_email(self):
+        order = self.env["sale.order"].create({"partner_id": self.buyer.id})
+        before = self.env["mail.mail"].search([])
+        order._send_wishlist_update_email(
+            self.wishlist,
+            self.wishlist.line_ids,
+            gift_message="Con mucho cariño para el bebé",
+            gift_signature="Tío Juan",
+        )
+        mail = (self.env["mail.mail"].search([]) - before)
+        self.assertTrue(mail, "Debe crearse el correo de actualización")
+        body = mail[0].body_html
+        self.assertIn("Con mucho cariño para el bebé", body)
+        self.assertIn("Tío Juan", body)
+
+    def test_email_without_gift_still_works(self):
+        order = self.env["sale.order"].create({"partner_id": self.buyer.id})
+        before = self.env["mail.mail"].search([])
+        order._send_wishlist_update_email(self.wishlist, self.wishlist.line_ids)
+        mail = (self.env["mail.mail"].search([]) - before)
+        self.assertTrue(mail)
