@@ -19,6 +19,7 @@
     "assets": {
         "web.assets_frontend": [
             "cs_baby_wishlist/static/src/css/cs_baby_wishlist.css",
+            "cs_baby_wishlist/static/src/js/cs_baby_wishlist.js",
         ],
     },
     "application": True,

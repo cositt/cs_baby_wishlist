@@ -55,8 +55,8 @@
                                                      style="width:48px;height:48px;object-fit:cover;"
                                                      class="rounded" alt="Product"/>
                                                 <div>
-                                                    <div class="fw-semibold"><t t-esc="product.display_name"/></div>
-                                                    <small><t t-esc="product.currency_id.symbol or '$'"/>&#160;<t t-esc="'%.2f' % product.list_price"/></small>
+                                                    <div class="fw-semibold"><t t-esc="product.name"/></div>
+                                                    <small><t t-esc="product.currency_id.symbol or '$'"/>&#160;<t t-esc="'%.2f' % price_map.get(product.id, product.list_price)"/></small>
                                                 </div>
                                             </div>
                                             <form action="/baby-wishlist/cart/add" method="post" class="mt-auto d-flex gap-2">
@@ -79,7 +79,7 @@
                                 <div t-if="not cart_lines" class="text-muted">No hay productos todavía.</div>
                                 <div t-foreach="cart_lines" t-as="line" class="d-flex justify-content-between align-items-center border-bottom py-2">
                                     <div>
-                                        <div class="fw-semibold"><t t-esc="line['product'].display_name"/></div>
+                                        <div class="fw-semibold"><t t-esc="line['product'].name"/></div>
                                         <small>Cantidad: <t t-esc="line['qty']"/></small>
                                     </div>
                                     <form action="/baby-wishlist/cart/remove" method="post">
@@ -220,7 +220,7 @@
                                         <form t-att-action="'/wishlist/manage/%s/add' % wishlist.manage_token" method="post" class="d-flex align-items-center gap-2">
                                             <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
                                             <input type="hidden" name="product_id" t-att-value="product.id"/>
-                                            <span class="flex-grow-1 small"><t t-esc="product.display_name"/></span>
+                                            <span class="flex-grow-1 small"><t t-esc="product.name"/></span>
                                             <input type="number" name="qty" value="1" min="1" class="form-control form-control-sm" style="width:70px;"/>
                                             <button type="submit" class="btn btn-outline-primary btn-sm">+</button>
                                         </form>
@@ -376,10 +376,10 @@
                                                     class="rounded"
                                                     style="width:48px;height:48px;object-fit:cover;"
                                                     alt="Imagen de producto"/>
-                                                <span t-esc="line.product_id.display_name"/>
+                                                <span t-esc="line.product_id.name"/>
                                             </div>
                                         </td>
-                                        <td class="text-end"><t t-esc="line.product_price"/></td>
+                                        <td class="text-end"><t t-esc="line.product_id.currency_id.symbol or '$'"/>&#160;<t t-esc="'%.2f' % line_price_map.get(line.id, 0.0)"/></td>
                                         <td class="text-end"><t t-esc="int(line.quantity_desired or 0)"/></td>
                                         <td class="text-end"><t t-esc="int(line.quantity_purchased or 0)"/></td>
                                         <td class="text-end"><t t-esc="int(line.remaining_qty or 0)"/></td>
@@ -413,7 +413,7 @@
                                                         </div>
                                                         <div class="modal-body">
                                                             <p class="mb-2">
-                                                                <strong><t t-esc="line.product_id.display_name"/></strong>
+                                                                <strong><t t-esc="line.product_id.name"/></strong>
                                                             </p>
                                                             <p class="text-muted mb-3">
                                                                 Disponible para comprar: <strong><t t-esc="int(line.remaining_qty or 0)"/></strong>

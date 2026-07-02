@@ -37,6 +37,40 @@ class WishlistController(http.Controller):
             str(k): self._to_int_qty(v) for k, v in cart.items() if self._to_int_qty(v) > 0
         }
 
+    def _retail_pricelists(self):
+        """Devuelve (regular, sale) segun la config de la instancia WooCommerce.
+
+        product.list_price es un placeholder (1.00) importado de Woo; el precio real
+        vive en la pricelist "regular" (woo_pricelist_id), con descuento opcional en la
+        "sale" (woo_extra_pricelist_id). Se usa la regular para TODOS los visitantes
+        (portal/anonimo resuelven la pricelist de venta -> 0.00, por eso no se usa la
+        pricelist de sesion). Fallback a la pricelist de sesion si no hay instancia Woo.
+        """
+        empty = request.env["product.pricelist"].sudo()
+        regular = empty
+        sale = empty
+        if "woo.instance.ept" in request.env:
+            instance = request.env["woo.instance.ept"].sudo().search([], limit=1)
+            if instance:
+                regular = instance.woo_pricelist_id
+                sale = instance.woo_extra_pricelist_id
+        if not regular:
+            regular = request.website._get_and_cache_current_pricelist()
+        return regular, sale
+
+    def _price_map(self, products):
+        """Precio real por producto: pricelist regular de Woo, con descuento sale si aplica."""
+        regular, sale = self._retail_pricelists()
+        price_map = {}
+        for product in products:
+            base = regular._get_product_price(product, 1.0) if regular else product.list_price
+            if sale:
+                promo = sale._get_product_price(product, 1.0)
+                if 0.0 < promo < base:
+                    base = promo
+            price_map[product.id] = base
+        return price_map
+
     def _get_active_manage_wishlist(self):
         manage_token = request.session.get("baby_wishlist_manage_token")
         if not manage_token:
@@ -61,6 +95,7 @@ class WishlistController(http.Controller):
             {
                 "products": products,
                 "cart_lines": cart_lines,
+                "price_map": self._price_map(products),
                 "search": search or "",
                 "error": kwargs.get("error"),
                 "success": kwargs.get("success"),
@@ -295,9 +330,12 @@ class WishlistController(http.Controller):
         wishlist = request.env["wishlist.list"].sudo().search([("token", "=", token)], limit=1)
         if not wishlist:
             return request.not_found()
+        lines = wishlist.line_ids
+        product_price_map = self._price_map(lines.mapped("product_id"))
+        line_price_map = {line.id: product_price_map.get(line.product_id.id, 0.0) for line in lines}
         return request.render(
             "cs_baby_wishlist.wishlist_public_page",
-            {"wishlist": wishlist, "lines": wishlist.line_ids},
+            {"wishlist": wishlist, "lines": lines, "line_price_map": line_price_map},
         )
 
     @http.route(
