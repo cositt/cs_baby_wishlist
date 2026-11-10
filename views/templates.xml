@@ -281,11 +281,13 @@
         </t>
     </template>
 
-    <!-- Single template for both the button and modal to avoid duplicate DB query -->
+    <!-- «+ lista deseo» button: lives inside the add-to-cart form (product_option_block).
+         detail_user_wishlists is set once by product_page_wishlist_modal; fall back to a query
+         when cta_wrapper is rendered outside the product page. -->
     <template id="product_detail_wishlist" inherit_id="website_sale.cta_wrapper" name="Product Detail Wishlist">
         <xpath expr="//div[@id='product_option_block']" position="inside">
             <t t-if="request.env.user and not request.env.user._is_public()">
-                <t t-set="detail_user_wishlists" t-value="request.env['wishlist.list'].sudo().search(['|', ('customer_id', '=', request.env.user.partner_id.id), ('co_parent_id', '=', request.env.user.partner_id.id), ('state', '!=', 'closed')], order='id desc', limit=20)"/>
+                <t t-set="detail_user_wishlists" t-value="detail_user_wishlists if detail_user_wishlists is not None else request.env['wishlist.list']._get_open_for_partner(request.env.user.partner_id)"/>
                 <button
                     t-if="detail_user_wishlists"
                     type="button"
@@ -300,32 +302,42 @@
                     href="/baby-wishlist">
                     Crear wishlist
                 </a>
-                <div t-if="detail_user_wishlists" class="modal fade cs-wishlist-modal" id="wishlistModalDetail" tabindex="-1" aria-hidden="true">
-                    <div class="modal-dialog modal-dialog-centered">
-                        <div class="modal-content">
-                            <div class="modal-header">
-                                <h5 class="modal-title">Añadir a lista de deseos</h5>
-                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"/>
-                            </div>
-                            <div class="modal-body">
-                                <form action="/wishlist/catalog/add" method="post" class="d-grid gap-2">
-                                    <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
-                                    <input type="hidden" name="product_id" t-att-value="product_variant.id if product_variant else product.product_variant_id.id"/>
-                                    <label class="form-label mb-0">Lista de deseos</label>
-                                    <select name="wishlist_id" class="form-select" required="required">
-                                        <option t-foreach="detail_user_wishlists" t-as="wl" t-att-value="wl.id">
-                                            <t t-esc="wl.name"/>
-                                        </option>
-                                    </select>
-                                    <label class="form-label mb-0">Cantidad</label>
-                                    <input name="qty" class="form-control" type="number" min="1" step="1" value="1" required="required"/>
-                                    <button type="submit" class="btn btn-primary">Añadir</button>
-                                </form>
-                            </div>
+            </t>
+        </xpath>
+    </template>
+
+    <!-- The modal and its form go after #product_detail, OUTSIDE the add-to-cart <form>:
+         a <form> nested in another <form> is dropped by the browser, so «Añadir» did nothing. -->
+    <template id="product_page_wishlist_modal" inherit_id="website_sale.product" name="Product Page Wishlist Modal">
+        <xpath expr="//section[@id='product_detail']" position="before">
+            <t t-set="detail_user_wishlists" t-value="request.env['wishlist.list']._get_open_for_partner(request.env.user.partner_id) if request.env.user and not request.env.user._is_public() else request.env['wishlist.list']"/>
+        </xpath>
+        <xpath expr="//section[@id='product_detail']" position="after">
+            <div t-if="detail_user_wishlists" class="modal fade cs-wishlist-modal" id="wishlistModalDetail" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Añadir a lista de deseos</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"/>
+                        </div>
+                        <div class="modal-body">
+                            <form action="/wishlist/catalog/add" method="post" class="d-grid gap-2">
+                                <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+                                <input type="hidden" name="product_id" t-att-value="product_variant.id if product_variant else product.product_variant_id.id"/>
+                                <label class="form-label mb-0">Lista de deseos</label>
+                                <select name="wishlist_id" class="form-select" required="required">
+                                    <option t-foreach="detail_user_wishlists" t-as="wl" t-att-value="wl.id">
+                                        <t t-esc="wl.name"/>
+                                    </option>
+                                </select>
+                                <label class="form-label mb-0">Cantidad</label>
+                                <input name="qty" class="form-control" type="number" min="1" step="1" value="1" required="required"/>
+                                <button type="submit" class="btn btn-primary">Añadir</button>
+                            </form>
                         </div>
                     </div>
                 </div>
-            </t>
+            </div>
         </xpath>
     </template>
 

@@ -67,6 +67,18 @@ class TestWishlistList(TransactionCase):
         wishlist = self._make_wishlist(co_parent=True)
         self.assertEqual(wishlist.co_parent_id, self.partner2)
 
+    def test_open_for_partner_includes_owner_and_coparent_lists(self):
+        own = self._make_wishlist(state="active")
+        shared = self._make_wishlist(state="draft", co_parent=True)
+        closed = self._make_wishlist(state="closed")
+        found = self.env["wishlist.list"]._get_open_for_partner(self.partner)
+        self.assertIn(own, found)
+        self.assertNotIn(closed, found)
+        self.assertIn(shared, self.env["wishlist.list"]._get_open_for_partner(self.partner2))
+
+    def test_open_for_partner_empty_without_partner(self):
+        self.assertFalse(self.env["wishlist.list"]._get_open_for_partner(self.env["res.partner"]))
+
     def test_wishlist_count_on_partner(self):
         self._make_wishlist()
         self._make_wishlist()
