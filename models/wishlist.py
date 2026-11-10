@@ -48,6 +48,22 @@ class WishlistList(models.Model):
             rec.manage_url = f"{base_url}/wishlist/manage/{rec.manage_token}" if rec.manage_token else False
 
     @api.model
+    def _get_open_for_partner(self, partner, limit=20):
+        """Listas no cerradas donde el partner es padre/madre o co-parent (para la web)."""
+        if not partner:
+            return self.browse()
+        return self.sudo().search(
+            [
+                "|",
+                ("customer_id", "=", partner.id),
+                ("co_parent_id", "=", partner.id),
+                ("state", "!=", "closed"),
+            ],
+            order="id desc",
+            limit=limit,
+        )
+
+    @api.model
     def _generate_token(self):
         return uuid.uuid4().hex
 
